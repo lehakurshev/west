@@ -1,7 +1,9 @@
+
 import Card from './Card.js';
 import Game from './Game.js';
 import TaskQueue from './TaskQueue.js';
 import SpeedRate from './SpeedRate.js';
+import getInheritanceDescription from "./Card.js";
 
 // Отвечает является ли карта уткой.
 function isDuck(card) {
@@ -11,10 +13,6 @@ function isDuck(card) {
 // Отвечает является ли карта собакой.
 function isDog(card) {
     return card instanceof Dog;
-}
-
-function isGatling(card) {
-    return card instanceof Gatling;
 }
 
 // Дает описание существа по схожести с утками и собаками
@@ -28,12 +26,6 @@ function getCreatureDescription(card) {
     if (isDog(card)) {
         return 'Собака';
     }
-    if (isDog(card)) {
-        return 'Собака';
-    }
-    if (isGatling(card)){
-        return 'Гатлинг'
-    }
     return 'Существо';
 }
 
@@ -44,9 +36,34 @@ class Creature extends Card {
 }
 
 
+class Gatling extends Creature {
+    constructor() {
+        super('Гатлинг', 6);
+    }
 
+    attack(gameContext, continuation) {
+        const taskQueue = new TaskQueue();
+        const cardsToAttack = gameContext.oppositePlayer.table;
 
+        for (let index = 0; index < cardsToAttack.length; index++) {
+            taskQueue.push(onDone => {
+                const targetCard = cardsToAttack[index];
+                this.dealDamageToCreature(2, targetCard, gameContext, onDone);
 
+            });
+        }
+
+        taskQueue.continueWith(continuation);
+    };
+
+    quacks() {
+        console.log('quack');
+    }
+
+    swims() {
+        console.log('float: both;');
+    }
+}
 
 class Duck extends Creature {
     constructor() {
@@ -63,62 +80,121 @@ class Duck extends Creature {
 }
 
 class Dog extends Creature {
-    constructor() {
-        super('Пес-бандит', 3);
-    }
-
-    quacks() {
-        console.log('quack');
-    }
-
-    swims() {
-        console.log('float: both;');
+    constructor(name = 'Пес-бандит', power = 3) {
+        super(name, power);
     }
 }
 
-class Gatling extends Creature {
+class Lad extends Dog {
     constructor() {
-        super('Гатлинг', 6);
+        super('Братки', 2);
     }
 
-    attack(gameContext, continuation) {
+    modifyDealedDamageToCreature(value, toCard, gameContext, continuation) {
+        super.modifyTakenDamage(value + Lad.getBonus(), toCard, gameContext, continuation)
+    };
+
+    modifyTakenDamage(value, fromCard, gameContext, continuation) {
+        super.modifyTakenDamage(value - Lad.getBonus(), fromCard, gameContext, continuation);
+    };
+
+    takeDamage(value, fromCard, gameContext, continuation) {
         const taskQueue = new TaskQueue();
-        const cardsToAttack = gameContext.oppositePlayer.table;
-    
-        for (let index = 0; index < cardsToAttack.length; index++) {
-            taskQueue.push(onDone => {
-                const targetCard = cardsToAttack[index];
-                this.dealDamageToCreature(2, targetCard, gameContext, onDone);
-                
+
+        let actualValue = value;
+
+        taskQueue.push(onDone => {
+            this.modifyTakenDamage(actualValue, fromCard, gameContext, (v) => {
+                if (v !== undefined) {
+                    actualValue = v;
+                }
+                onDone();
             });
-        }
-    
+        });
+
+        taskQueue.push(onDone => {
+            if (actualValue <= 0) {
+                this.view.signalAbility(onDone());
+                return;
+            }
+
+            this.currentPower = this.currentPower - actualValue;
+            this.updateView();
+            this.view.signalAbility(() => this.view.signalDamage(onDone));
+        });
+
         taskQueue.continueWith(continuation);
     };
 
-    quacks() {
-        console.log('quack');
+    doAfterComingIntoPlay(gameContext, continuation) {
+        const {currentPlayer, oppositePlayer, position, updateView} = gameContext;
+        Lad.setInGameCount(Lad.getInGameCount() + 1)
+        continuation();
+    };
+
+    doBeforeRemoving(continuation) {
+        Lad.setInGameCount(Lad.getInGameCount() - 1)
+        continuation();
+    };
+
+    static getBonus() {
+        const ladCount =  this.getInGameCount();
+        return (ladCount * (ladCount + 1)) / 2;
     }
 
-    swims() {
-        console.log('float: both;');
+    static setInGameCount(value) { this.inGameCount = value; }
+    static getInGameCount() { return this.inGameCount || 0; }
+}
+
+class Trasher extends Dog {
+    constructor() {
+        super('Громила', 5);
+    }
+
+    takeDamage(value, fromCard, gameContext, continuation) {
+        const taskQueue = new TaskQueue();
+
+        let actualValue = value;
+
+        taskQueue.push(onDone => {
+            this.modifyTakenDamage(actualValue, fromCard, gameContext, (v) => {
+                if (v !== undefined) {
+                    actualValue = v;
+                }
+                onDone();
+            });
+        });
+
+        taskQueue.push(onDone => {
+            if (actualValue <= 0) {
+                this.view.signalAbility(onDone());
+                return;
+            }
+
+            this.currentPower = this.currentPower - actualValue;
+            this.updateView();
+            this.view.signalAbility(() => this.view.signalDamage(onDone));
+        });
+
+        taskQueue.continueWith(continuation);
+    };
+
+    modifyTakenDamage(value, fromCard, gameContext, continuation) {
+        super.modifyTakenDamage(value - 1, fromCard, gameContext, continuation);
     }
 }
 
-
-
 // Колода Шерифа, нижнего игрока.
 const seriffStartDeck = [
-    
     new Gatling(),
+    new Duck(),
+    new Duck(),
 ];
 const banditStartDeck = [
-
-    new Dog(),
-    new Dog(),
-    new Dog(),
+    new Lad(),
+    new Lad(),
+    new Trasher(),
 ];
-
 // Создание игры.
 const game = new Game(seriffStartDeck, banditStartDeck);
 

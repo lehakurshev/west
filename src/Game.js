@@ -1,9 +1,6 @@
 import Player from './Player.js';
 import PlayerView from './PlayerView.js';
 
-
-
-
 class Game {
     constructor(bottomPlayerDeck, topPlayerDeck) {
         this.bottomPlayerStartDeck = bottomPlayerDeck;
