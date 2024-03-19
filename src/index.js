@@ -13,6 +13,10 @@ function isDog(card) {
     return card instanceof Dog;
 }
 
+function isGatling(card) {
+    return card instanceof Gatling;
+}
+
 // Дает описание существа по схожести с утками и собаками
 function getCreatureDescription(card) {
     if (isDuck(card) && isDog(card)) {
@@ -24,7 +28,19 @@ function getCreatureDescription(card) {
     if (isDog(card)) {
         return 'Собака';
     }
+    if (isDog(card)) {
+        return 'Собака';
+    }
+    if (isGatling(card)){
+        return 'Гатлинг'
+    }
     return 'Существо';
+}
+
+class Creature extends Card {
+    getDescriptions() {
+        return [getCreatureDescription(), ...super.getDescriptions()];
+    }
 }
 
 
@@ -32,8 +48,7 @@ function getCreatureDescription(card) {
 
 
 
-
-class Duck extends Card {
+class Duck extends Creature {
     constructor() {
         super('Мирная утка', 2);
     }
@@ -47,20 +62,60 @@ class Duck extends Card {
     }
 }
 
-class Dog extends Card {
+class Dog extends Creature {
     constructor() {
         super('Пес-бандит', 3);
     }
+
+    quacks() {
+        console.log('quack');
+    }
+
+    swims() {
+        console.log('float: both;');
+    }
 }
+
+class Gatling extends Creature {
+    constructor() {
+        super('Гатлинг', 6);
+    }
+
+    attack(gameContext, continuation) {
+        const taskQueue = new TaskQueue();
+        const cardsToAttack = gameContext.oppositePlayer.table;
+    
+        for (let index = 0; index < cardsToAttack.length; index++) {
+            taskQueue.push(onDone => {
+                const targetCard = cardsToAttack[index];
+                this.dealDamageToCreature(2, targetCard, gameContext, onDone);
+                
+            });
+        }
+    
+        taskQueue.continueWith(continuation);
+    };
+
+    quacks() {
+        console.log('quack');
+    }
+
+    swims() {
+        console.log('float: both;');
+    }
+}
+
+
 
 // Колода Шерифа, нижнего игрока.
 const seriffStartDeck = [
-    new Duck(),
-    new Dog(),
-    new Duck(),
+    
+    new Gatling(),
 ];
-
 const banditStartDeck = [
+
+    new Dog(),
+    new Dog(),
     new Dog(),
 ];
 
