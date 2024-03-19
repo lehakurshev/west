@@ -1,7 +1,9 @@
+
 import Card from './Card.js';
 import Game from './Game.js';
 import TaskQueue from './TaskQueue.js';
 import SpeedRate from './SpeedRate.js';
+import getInheritanceDescription from "./Card.js";
 
 // Отвечает является ли карта уткой.
 function isDuck(card) {
@@ -27,13 +29,13 @@ function getCreatureDescription(card) {
     return 'Существо';
 }
 
+class Creature extends Card {
+    getDescriptions() {
+        return [getCreatureDescription(), ...super.getDescriptions()];
+    }
+}
 
-
-
-
-
-
-class Duck extends Card {
+class Duck extends Creature {
     constructor() {
         super('Мирная утка', 2);
     }
@@ -47,23 +49,125 @@ class Duck extends Card {
     }
 }
 
-class Dog extends Card {
+class Dog extends Creature {
+    constructor(name = 'Пес-бандит', power = 3) {
+        super(name, power);
+    }
+}
+
+class Lad extends Dog {
     constructor() {
-        super('Пес-бандит', 3);
+        super('Братки', 2);
+    }
+
+    modifyDealedDamageToCreature(value, toCard, gameContext, continuation) {
+        super.modifyTakenDamage(value + Lad.getBonus(), toCard, gameContext, continuation)
+    };
+
+    modifyTakenDamage(value, fromCard, gameContext, continuation) {
+        super.modifyTakenDamage(value - Lad.getBonus(), fromCard, gameContext, continuation);
+    };
+
+    takeDamage(value, fromCard, gameContext, continuation) {
+        const taskQueue = new TaskQueue();
+
+        let actualValue = value;
+
+        taskQueue.push(onDone => {
+            this.modifyTakenDamage(actualValue, fromCard, gameContext, (v) => {
+                if (v !== undefined) {
+                    actualValue = v;
+                }
+                onDone();
+            });
+        });
+
+        taskQueue.push(onDone => {
+            if (actualValue <= 0) {
+                this.view.signalAbility(onDone());
+                return;
+            }
+
+            this.currentPower = this.currentPower - actualValue;
+            this.updateView();
+            this.view.signalAbility(() => this.view.signalDamage(onDone));
+        });
+
+        taskQueue.continueWith(continuation);
+    };
+
+    doAfterComingIntoPlay(gameContext, continuation) {
+        const {currentPlayer, oppositePlayer, position, updateView} = gameContext;
+        Lad.setInGameCount(Lad.getInGameCount() + 1)
+        continuation();
+    };
+
+    doBeforeRemoving(continuation) {
+        Lad.setInGameCount(Lad.getInGameCount() - 1)
+        continuation();
+    };
+
+    static getBonus() {
+        const ladCount =  this.getInGameCount();
+        return (ladCount * (ladCount + 1)) / 2;
+    }
+
+    static setInGameCount(value) { this.inGameCount = value; }
+    static getInGameCount() { return this.inGameCount || 0; }
+}
+
+class Trasher extends Dog {
+    constructor() {
+        super('Громила', 5);
+    }
+
+    takeDamage(value, fromCard, gameContext, continuation) {
+        const taskQueue = new TaskQueue();
+
+        let actualValue = value;
+
+        taskQueue.push(onDone => {
+            this.modifyTakenDamage(actualValue, fromCard, gameContext, (v) => {
+                if (v !== undefined) {
+                    actualValue = v;
+                }
+                onDone();
+            });
+        });
+
+        taskQueue.push(onDone => {
+            if (actualValue <= 0) {
+                this.view.signalAbility(onDone());
+                return;
+            }
+
+            this.currentPower = this.currentPower - actualValue;
+            this.updateView();
+            this.view.signalAbility(() => this.view.signalDamage(onDone));
+        });
+
+        taskQueue.continueWith(continuation);
+    };
+
+    modifyTakenDamage(value, fromCard, gameContext, continuation) {
+        super.modifyTakenDamage(value - 1, fromCard, gameContext, continuation);
     }
 }
 
 // Колода Шерифа, нижнего игрока.
 const seriffStartDeck = [
     new Duck(),
-    new Dog(),
+    new Duck(),
+    new Duck(),
+    new Duck(),
+    new Duck(),
     new Duck(),
 ];
-
 const banditStartDeck = [
-    new Dog(),
+    new Lad(),
+    new Lad(),
+    new Trasher(),
 ];
-
 // Создание игры.
 const game = new Game(seriffStartDeck, banditStartDeck);
 
