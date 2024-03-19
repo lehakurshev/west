@@ -1,8 +1,8 @@
 import SpeedRate from './SpeedRate.js';
 import TaskQueue from './TaskQueue.js';
 
-const PlayerView = function () {
-    function PlayerView(playerRow, playerTable, inBottomRow) {
+class PlayerView {
+    constructor(playerRow, playerTable, inBottomRow) {
         this.inBottomRow = inBottomRow;
         this.signal = playerRow.querySelector('.playerSignal');
         this.image = playerRow.querySelector('.playerImage img');
@@ -12,7 +12,7 @@ const PlayerView = function () {
         this.table =  playerTable.querySelectorAll('.cardPlace');
     }
 
-    PlayerView.prototype.updateData = function ({image, currentPower, maxPower}) {
+    updateData({image, currentPower, maxPower}) {
         if (this.image) {
             this.image.setAttribute('src', `images/${image}`);
         } else {
@@ -22,19 +22,24 @@ const PlayerView = function () {
         this.maxPower.innerText = maxPower;
     };
 
-    PlayerView.prototype.signalHeal = function(continuation) {
+    signalHeal(continuation) {
         signal(this.signal, SpeedRate.get(), 'heal', continuation);
     };
 
-    PlayerView.prototype.signalDamage = function(continuation) {
+    signalDamage(continuation) {
         signal(this.signal, SpeedRate.get(), 'damage', continuation);
     };
 
-    PlayerView.prototype.signalTurnStart = function(continuation) {
+    signalTurnStart(continuation) {
         signal(this.signal, SpeedRate.get()/2, 'turnStart', continuation);
     };
 
-    function signal(signalElement, speedRate, signalName, continuation) {
+    
+
+    
+}
+
+function signal(signalElement, speedRate, signalName, continuation) {
         const taskQueue = new TaskQueue();
 
         const timeInSec = 0.5/speedRate;
@@ -54,8 +59,5 @@ const PlayerView = function () {
 
         taskQueue.continueWith(continuation);
     }
-
-    return PlayerView;
-}();
 
 export default PlayerView;
